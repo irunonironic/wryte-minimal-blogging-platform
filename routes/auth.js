@@ -11,7 +11,7 @@ router.post('/register', async (req, res) => {
     const result = await db.query(
       `INSERT INTO users (username, email, password_hash) 
        VALUES ($1,$2,$3) RETURNING id, username`,
-      [username, email, hash, blog_title]
+      [username, email, hash]
     );
     req.session.userId = result.rows[0].id;
     res.json({ success: true, user: result.rows[0] });
