@@ -2,6 +2,7 @@
 
 A simple personal blogging platform built with HTML, CSS, JavaScript, and Node.js/Express.
 
+🔗 [Live Demo](https://wryte-minimal-blogging-platform.vercel.app/)
 ---
 
 ## Features
