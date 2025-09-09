@@ -6,7 +6,7 @@ const path = require('path');
 const authRoutes = require('./routes/auth');
 const postRoutes = require('./routes/posts');
 const userRoutes = require('./routes/users');
-
+const pgSession = require('connect-pg-simple')(session);
 const app = express();
 const PORT = process.env.PORT ;
 
@@ -16,17 +16,23 @@ app.use(express.urlencoded({ extended: true }));
 
 app.set('trust proxy', 1); 
 
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === "production", 
-    httpOnly: true,
-    sameSite: "lax",
-    maxAge: 24 * 60 * 60 * 1000 // 24h
-  }
-}));
+app.use(
+  session({
+    store: new pgSession({
+      pool: pool,               
+      tableName: 'session'      
+    }),
+    secret: process.env.SESSION_SECRET || 'dev-secret',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production', 
+      httpOnly: true,
+      sameSite: 'none', 
+      maxAge: 24 * 60 * 60 * 1000 
+    }
+  })
+);
 
 
 // Serve static files
@@ -43,7 +49,7 @@ app.get('/', (req, res) => {
   const host = req.get('host');
   const subdomain = host.split('.')[0];
   
-  // If it's a subdomain (not main site), show that user's blog
+
   if (subdomain !== 'my-main-domain.com' && subdomain !== host) {
     res.sendFile(path.join(__dirname, 'public', 'blog.html'));
   } else {
