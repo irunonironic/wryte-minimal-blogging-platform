@@ -14,12 +14,20 @@ const PORT = process.env.PORT ;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.set('trust proxy', 1); 
+
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'dev-secret',
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+  cookie: {
+    secure: process.env.NODE_ENV === "production", 
+    httpOnly: true,
+    sameSite: "lax",
+    maxAge: 24 * 60 * 60 * 1000 // 24h
+  }
 }));
+
 
 // Serve static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
