@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Post - wryte</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-white text-black min-h-screen">
+
+  <nav class="border-b border-gray-200 bg-white">
+    <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+      <a href="index.html" class="text-2xl font-bold" style="font-family: 'Dancing Script', cursive;">wryte</a>
+      <div class="flex items-center space-x-6">
+        <a href="dashboard.html" class="text-sm text-gray-600 hover:text-black transition-colors">← Dashboard</a>
+        <a href="login.html" class="text-sm text-gray-600 hover:text-black transition-colors">Logout</a>
+      </div>
+    </div>
+  </nav>
+
+  
+  <main class="max-w-2xl mx-auto px-6 py-12">
+    <div class="text-center mb-8">
+      <h1 class="text-2xl font-bold mb-2">Write a New Post</h1>
+      <p class="text-gray-600 text-sm">Share your thoughts with the world</p>
+    </div>
+
+    <form id="newPostForm" class="space-y-6">
+      <div>
+        <label for="title" class="block text-sm font-medium mb-2">Post Title</label>
+        <input 
+          type="text" 
+          id="title" 
+          name="title" 
+          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-sm" 
+          required
+          placeholder="Enter your post title..."
+        >
+      </div>
+      
+      <div>
+        <label for="content" class="block text-sm font-medium mb-2">Content</label>
+        <textarea 
+          id="content" 
+          name="content" 
+          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-sm resize-y" 
+          required
+          placeholder="Write your post content here...
+
+You can use basic HTML tags like:
+- <strong>bold text</strong>
+- <em>italic text</em>
+- <a href='https://example.com'>links</a>
+- <p>paragraphs</p>
+
+Keep it simple and focused on your message!"
+          style="min-height: 300px;"
+        ></textarea>
+      </div>
+      
+      <div class="flex items-center">
+        <input 
+          type="checkbox" 
+          id="published" 
+          name="published" 
+          class="mr-2 h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
+        >
+        <label for="published" class="text-sm text-gray-700">Publish immediately (uncheck to save as draft)</label>
+      </div>
+      
+      <div class="flex items-center gap-4">
+        <button type="submit" class="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 transition-colors text-sm">Save Post</button>
+        <a href="dashboard.html" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors text-sm">Cancel</a>
+        <div id="status" class="text-sm"></div>
+      </div>
+    </form>
+
+    
+    <div class="mt-12 p-6 bg-gray-50 rounded-lg">
+      <h3 class="text-lg font-medium mb-4">Writing Tips</h3>
+      <ul class="space-y-2 text-sm text-gray-700">
+        <li><strong>Write for humans:</strong> Use clear, conversational language</li>
+        <li><strong>Start strong:</strong> Hook readers with your opening sentence</li>
+        <li><strong>Keep it focused:</strong> One main idea per post works best</li>
+        <li><strong>Edit ruthlessly:</strong> Cut unnecessary words and fluff</li>
+        <li><strong>Save drafts:</strong> Don't feel pressure to publish immediately</li>
+      </ul>
+    </div>
+  </main>
+
+  <script>
+    
+    async function checkAuth() {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (!response.ok) {
+          window.location.href = 'login.html';
+          return false;
+        }
+        return true;
+      } catch (error) {
+        window.location.href = 'login.html';
+        return false;
+      }
+    }
+
+    
+    let autoSaveTimeout;
+    function scheduleAutoSave() {
+      clearTimeout(autoSaveTimeout);
+      autoSaveTimeout = setTimeout(saveDraft, 30000); // Save every 30 seconds
+    }
+
+    async function saveDraft() {
+      const form = document.getElementById('newPostForm');
+      const title = form.title.value.trim();
+      const content = form.content.value.trim();
+      
+      if (!title || !content) return;
+      
+      try {
+        await fetch('/api/posts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title,
+            content,
+            published: false
+          })
+        });
+        
+        const statusDiv = document.getElementById('status');
+        statusDiv.innerHTML = '<span style="color: #666; font-size: 0.9em;">Draft auto-saved</span>';
+        setTimeout(() => {
+          statusDiv.innerHTML = '';
+        }, 2000);
+      } catch (error) {
+        // Silently fail auto-save
+      }
+    }
+
+   
+    document.getElementById('newPostForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const formData = new FormData(e.target);
+      const data = {
+        title: formData.get('title'),
+        content: formData.get('content'),
+        published: formData.has('published')
+      };
+      
+      const statusDiv = document.getElementById('status');
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      
+      submitBtn.textContent = data.published ? 'Publishing...' : 'Saving Draft...';
+      submitBtn.disabled = true;
+      statusDiv.innerHTML = '';
+      
+      try {
+        const response = await fetch('/api/posts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          statusDiv.innerHTML = `<span class="success">✓ ${data.published ? 'Published' : 'Saved as draft'}!</span>`;
+          
+         
+          setTimeout(() => {
+            window.location.href = 'dashboard.html';
+          }, 1500);
+        } else {
+          const error = await response.json();
+          statusDiv.innerHTML = `<span class="error">${error.error || 'Failed to save post'}</span>`;
+        }
+      } catch (error) {
+        statusDiv.innerHTML = '<span class="error">Network error. Please try again.</span>';
+      } finally {
+        if (statusDiv.innerHTML.includes('error')) {
+          submitBtn.textContent = 'Save Post';
+          submitBtn.disabled = false;
+        }
+      }
+    });
+
+  
+    const titleInput = document.getElementById('title');
+    const contentTextarea = document.getElementById('content');
+    
+    titleInput.addEventListener('input', scheduleAutoSave);
+    contentTextarea.addEventListener('input', scheduleAutoSave);
+
+    
+    titleInput.focus();
+
+  
+    contentTextarea.addEventListener('input', (e) => {
+      const charCount = e.target.value.length;
+      const label = e.target.previousElementSibling;
+      label.textContent = `Content (${charCount.toLocaleString()} characters)`;
+    });
+
+   
+    document.addEventListener('keydown', (e) => {
+      // Ctrl/Cmd + S to save
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        document.getElementById('newPostForm').dispatchEvent(new Event('submit'));
+      }
+      
+     
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('published').checked = true;
+        document.getElementById('newPostForm').dispatchEvent(new Event('submit'));
+      }
+    });
+
+    
+    checkAuth();
+  </script>
+</body>
+</html>

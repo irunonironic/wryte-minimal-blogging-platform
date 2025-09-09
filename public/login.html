@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - wryte</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    .logo-font { font-family: 'Dancing Script', cursive; }
+    .body-font { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="bg-white text-black body-font min-h-screen">
+
+  <header class="border-b border-gray-200 py-4">
+    <div class="max-w-6xl mx-auto px-6 flex justify-between items-center">
+      <h1 class="logo-font text-2xl font-semibold">
+        <a href="/" class="text-black hover:text-gray-700 transition-colors">wryte</a>
+      </h1>
+      <nav class="flex space-x-6">
+        <a href="/" class="text-sm text-gray-600 hover:text-black transition-colors">Home</a>
+        <a href="register.html" class="text-sm text-gray-600 hover:text-black transition-colors">Sign Up</a>
+      </nav>
+    </div>
+  </header>
+
+  
+  <main class="max-w-lg mx-auto px-6 py-12">
+    <div class="text-center mb-8">
+      <h2 class="text-2xl font-medium mb-2">Welcome Back</h2>
+      <p class="text-sm text-gray-600">Sign in to your wryte account</p>
+    </div>
+    
+    
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label for="username" class="block text-xs font-medium text-gray-700 mb-1">Username</label>
+        <input 
+          type="text" 
+          id="username" 
+          name="username" 
+          class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-colors" 
+          required 
+          autocomplete="username"
+        >
+      </div>
+      
+      <div>
+        <label for="password" class="block text-xs font-medium text-gray-700 mb-1">Password</label>
+        <input 
+          type="password" 
+          id="password" 
+          name="password" 
+          class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-colors" 
+          required
+          autocomplete="current-password"
+        >
+      </div>
+      
+      <button type="submit" class="w-full bg-black text-white py-2 px-4 text-sm font-medium rounded-md hover:bg-gray-800 transition-colors mt-6">
+        Sign In
+      </button>
+      <div id="error" class="text-red-600 text-xs text-center mt-2" style="display: none;"></div>
+    </form>
+
+    <p class="text-center text-xs text-gray-600 mt-6">
+      Don't have an account? <a href="register.html" class="text-black hover:underline">Create one here</a>
+    </p>
+  </main>
+
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData);
+      const errorDiv = document.getElementById('error');
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      
+    
+      submitBtn.textContent = 'Signing in...';
+      submitBtn.disabled = true;
+      errorDiv.style.display = 'none';
+      
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          window.location.href = 'dashboard.html';
+        } else {
+          errorDiv.textContent = result.error || 'Login failed';
+          errorDiv.style.display = 'block';
+        }
+      } catch (error) {
+        errorDiv.textContent = 'Network error. Please try again.';
+        errorDiv.style.display = 'block';
+      } finally {
+        submitBtn.textContent = 'Sign In';
+        submitBtn.disabled = false;
+      }
+    });
+
+   
+    document.getElementById('username').focus();
+  </script>
+</body>
+</html>

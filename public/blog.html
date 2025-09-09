@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blog - wryte</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <meta name="description" content="">
+  <style>
+    .font-cursive { font-family: 'Dancing Script', cursive; }
+    .font-inter { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="bg-white text-black font-inter min-h-screen">
+  
+  
+  <nav class="border-b border-gray-200 bg-white">
+    <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+      <a href="index.html" class="font-cursive text-2xl text-black hover:text-gray-700 transition-colors">
+        wryte
+      </a>
+      <div class="flex items-center space-x-6">
+        <a href="index.html" class="text-sm text-gray-600 hover:text-black transition-colors">Home</a>
+        <a href="login.html" class="text-sm text-gray-600 hover:text-black transition-colors">Login</a>
+        <a href="register.html" class="text-sm bg-black text-white px-3 py-1 rounded hover:bg-gray-800 transition-colors">Sign Up</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="text-center py-12 border-b border-gray-100">
+    <div class="max-w-2xl mx-auto px-6">
+      <h1 id="blogTitle" class="text-3xl font-semibold text-black mb-2">Loading...</h1>
+     
+      <div id="bio" class="text-gray-700 text-sm leading-relaxed max-w-md mx-auto"></div>
+    </div>
+  </header>
+
+  
+  <main class="max-w-2xl mx-auto px-6 py-8">
+    <section>
+      <h2 class="text-xl font-medium text-black mb-6 border-b border-gray-100 pb-2">Blogs</h2>
+      <ul id="posts" class="space-y-6">
+        <li class="text-gray-500 text-sm">Loading posts...</li>
+      </ul>
+    </section>
+
+    
+  </main>
+  <footer class="mt-16 py-8 text-center text-sm text-gray-600">
+  <p>© 2025 <span id="footerUser"></span>’s blog · Built with ❤️ on wryte</p>
+</footer>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+  const username = urlParams.get('username');
+
+  if (username) {
+    loadUserBlog(username);
+  } else {
+    showError('No username specified');
+  }
+
+  async function loadUserBlog(username) {
+    try {
+      const response = await fetch(`/api/users/${username}`);
+      if (!response.ok) throw new Error('User not found');
+
+      const data = await response.json();
+      const user = data.user;
+      const posts = data.posts;
+
+      
+      const blogTitle = `${user.username}'s Blog`;
+      document.title = `${blogTitle} - wryte`;
+      document.querySelector('meta[name="description"]').content =
+        user.bio || `Read ${user.username}'s blog posts on wryte`;
+
+      document.getElementById('blogTitle').textContent = blogTitle;
+
+      // footer 
+      const footerUser = document.getElementById('footerUser');
+      if (footerUser) {
+        footerUser.textContent = user.username;
+      }
+
+      // Show bio if it exists
+      if (user.bio && user.bio.trim()) {
+        document.getElementById('bio').innerHTML = `<p>${escapeHtml(user.bio)}</p>`;
+      }
+
+      displayPosts(posts, user);
+    } catch (error) {
+      showError('Blog not found');
+    }
+  }
+
+  function displayPosts(posts, user) {
+    const postsList = document.getElementById('posts');
+    if (posts.length === 0) {
+      postsList.innerHTML = `
+        <li class="text-center py-8">
+          <p class="text-gray-600 text-sm mb-2">${escapeHtml(user.username)} hasn't published any posts yet.</p>
+          <p><a href="register.html" class="text-black hover:underline text-sm">Start your own blog on wryte →</a></p>
+        </li>
+      `;
+      return;
+    }
+
+    const sortedPosts = posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    postsList.innerHTML = sortedPosts.map(post => `
+      <li class="border-b border-gray-50 pb-6 last:border-b-0">
+        <h3 class="text-lg font-medium mb-2">
+          <a href="post.html?id=${post.id}" class="text-black hover:text-gray-700 transition-colors">${escapeHtml(post.title)}</a>
+        </h3>
+        <div class="text-xs text-gray-500 mb-3">
+          ${formatDate(post.created_at)}
+          ${getReadingTime(post.content)}
+          ${post.votes ? ` • ${post.votes} vote${post.votes !== 1 ? 's' : ''}` : ''}
+        </div>
+        <div class="text-sm text-gray-600 leading-relaxed">
+          ${getExcerpt(post.content)}
+        </div>
+      </li>
+    `).join('');
+  }
+
+  function showError(message) {
+    document.body.innerHTML = `
+      <div class="min-h-screen flex items-center justify-center bg-white">
+        <div class="text-center max-w-md mx-auto px-6">
+          <h1 class="text-2xl font-medium text-black mb-4">Blog Not Found</h1>
+          <p class="text-gray-600 text-sm mb-6">${escapeHtml(message)}</p>
+          <a href="index.html" class="inline-block bg-black text-white px-4 py-2 text-sm rounded hover:bg-gray-800 transition-colors mb-4">← Back to wryte Home</a>
+          <p class="text-sm">
+            <a href="register.html" class="text-black hover:underline">Create your own blog →</a>
+          </p>
+        </div>
+      </div>
+    `;
+  }
+
+  function formatDate(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    });
+  }
+
+  function getReadingTime(content) {
+    const wordsPerMinute = 200;
+    const textContent = content.replace(/<[^>]*>/g, '');
+    const wordCount = textContent.split(/\s+/).length;
+    const readingTime = Math.ceil(wordCount / wordsPerMinute);
+    return readingTime > 1 ? ` • ${readingTime} min read` : '';
+  }
+
+  function getExcerpt(content, maxLength = 200) {
+    const plainText = content.replace(/<[^>]*>/g, '');
+    if (plainText.length <= maxLength) return plainText;
+
+    const truncated = plainText.substring(0, maxLength);
+    const lastSentence = truncated.lastIndexOf('.');
+    const lastSpace = truncated.lastIndexOf(' ');
+    if (lastSentence > maxLength * 0.7) return truncated.substring(0, lastSentence + 1);
+    if (lastSpace > 0) return truncated.substring(0, lastSpace) + '...';
+    return truncated + '...';
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  </script>
+</body>
+</html>

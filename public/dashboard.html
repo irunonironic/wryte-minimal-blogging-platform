@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - wryte</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-white text-black min-h-screen">
+
+  <nav class="border-b border-gray-200 bg-white">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <div class="flex items-center">
+          <a href="index.html" class="text-2xl font-bold" style="font-family: 'Dancing Script', cursive;">wryte</a>
+        </div>
+        <div class="flex items-center space-x-6">
+          <a href="index.html" class="text-sm text-gray-600 hover:text-black transition-colors">Home</a>
+          <a href="dashboard.html" class="text-sm text-black font-medium">Dashboard</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <header class="bg-white border-b border-gray-100">
+    <div class="max-w-4xl mx-auto px-4 py-6">
+      <div class="flex justify-between items-center">
+        <div>
+          <h1 class="text-xl font-semibold text-black">Your Blog</h1>
+          <div id="blogInfo" class="mt-1"></div>
+        </div>
+        <div class="flex items-center space-x-3">
+          <a href="new.html" class="px-4 py-2 bg-black text-white text-sm rounded hover:bg-gray-800 transition-colors">New Post</a>
+          <button id="logout" class="px-4 py-2 border border-gray-300 text-sm rounded hover:bg-gray-50 transition-colors">Logout</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-8">
+    
+    <section class="mb-12">
+      <h2 class="text-lg font-medium text-black mb-6">Blog Settings</h2>
+      <form id="profileForm" class="space-y-4">
+        <div>
+          <label for="bio" class="block text-sm font-medium text-black mb-2">About/Bio</label>
+          <textarea 
+            id="bio" 
+            name="bio" 
+            rows="4"
+            class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-colors resize-none" 
+            placeholder="Tell visitors about yourself and your blog..."
+          ></textarea>
+        </div>
+        
+        <div class="flex items-center space-x-4">
+          <button type="submit" class="px-4 py-2 bg-black text-white text-sm rounded hover:bg-gray-800 transition-colors">Save Changes</button>
+          <div id="profileStatus"></div>
+        </div>
+      </form>
+    </section>
+
+    <section class="mb-12">
+      <h2 class="text-lg font-medium text-black mb-6">Your Posts</h2>
+      <ul id="postsList" class="space-y-4">
+        <li class="p-4 border border-gray-200 rounded">Loading your posts...</li>
+      </ul>
+    </section>
+
+    <section id="stats" class="p-6 bg-gray-50 border border-gray-200 rounded">
+      <h3 class="text-base font-medium text-black mb-4">Blog Stats</h3>
+      <div id="statsContent" class="text-sm text-gray-600">Loading...</div>
+    </section>
+  </main>
+
+  <script>
+    let currentUser = null;
+
+    async function checkAuth() {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (!response.ok) {
+          window.location.href = 'login.html';
+          return false;
+        }
+        currentUser = await response.json();
+        updateBlogInfo();
+        return true;
+      } catch (error) {
+        window.location.href = 'login.html';
+        return false;
+      }
+    }
+
+    function updateBlogInfo() {
+      if (currentUser) {
+        document.getElementById('blogInfo').innerHTML = `
+          <p class="text-sm text-gray-600">
+            <strong class="text-black">${escapeHtml(currentUser.username)}</strong> • 
+            <a href="blog.html?username=${currentUser.username}" target="_blank" class="text-black hover:underline">View your blog →</a>
+          </p>
+          ${currentUser.bio ? `<p class="text-sm text-gray-500 mt-1">${escapeHtml(currentUser.bio)}</p>` : ''}
+        `;
+      }
+    }
+
+    async function loadPosts() {
+      try {
+        
+        const response = await fetch('/api/posts');
+        const allPosts = await response.json();
+        const userPosts = allPosts.filter(post => post.user_id === currentUser.id);
+        const postsList = document.getElementById('postsList');
+        
+        if (userPosts.length === 0) {
+          postsList.innerHTML = `
+            <li class="p-6 border border-gray-200 rounded text-center">
+              <p class="text-gray-600 mb-4">You haven't written any posts yet.</p>
+              <a href="new.html" class="px-4 py-2 bg-black text-white text-sm rounded hover:bg-gray-800 transition-colors">Write your first post</a>
+            </li>
+          `;
+        } else {
+          postsList.innerHTML = userPosts.map(post => `
+            <li class="p-4 border border-gray-200 rounded">
+              <h3 class="font-medium text-black mb-2">
+                <a href="post.html?id=${post.id}" target="_blank" class="hover:underline">${escapeHtml(post.title)}</a>
+                ${post.published ? '' : '<span class="text-xs text-gray-500 font-normal ml-2">(Draft)</span>'}
+              </h3>
+              <div class="text-sm text-gray-600 mb-3">
+                ${new Date(post.created_at).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+                ${post.votes ? `• ${post.votes} votes` : ''}
+              </div>
+              <div class="flex items-center space-x-2">
+                <a href="edit.html?id=${post.id}" class="px-3 py-1 border border-gray-300 text-sm rounded hover:bg-gray-50 transition-colors">Edit</a>
+                <button onclick="deletePost(${post.id})" class="px-3 py-1 text-red-600 border border-red-200 text-sm rounded hover:bg-red-50 transition-colors">Delete</button>
+              </div>
+            </li>
+          `).join('');
+
+          // Update stats
+          const publishedCount = userPosts.filter(p => p.published).length;
+          const draftCount = userPosts.filter(p => !p.published).length;
+          const totalVotes = userPosts.reduce((sum, p) => sum + (p.votes || 0), 0);
+          
+          document.getElementById('statsContent').innerHTML = `
+            <div class="space-y-1">
+              <p><strong class="text-black">${publishedCount}</strong> published posts</p>
+              <p><strong class="text-black">${draftCount}</strong> drafts</p>
+              <p><strong class="text-black">${totalVotes}</strong> total votes</p>
+            </div>
+          `;
+        }
+      } catch (error) {
+        document.getElementById('postsList').innerHTML = `
+          <li class="p-4 border border-red-200 rounded">
+            <div class="text-red-600 text-sm">Failed to load posts</div>
+          </li>
+        `;
+      }
+    }
+
+    async function deletePost(postId) {
+    
+      try {
+        const response = await fetch(`/api/posts/${postId}`, { method: 'DELETE' });
+        if (response.ok) loadPosts();
+        else alert('Failed to delete post');
+      } catch (error) {
+        alert('Error deleting post');
+      }
+    }
+
+    async function loadProfile() {
+      if (!currentUser) return;
+      const form = document.getElementById('profileForm');
+      form.bio.value = currentUser.bio || '';
+    }
+
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData);
+      const statusDiv = document.getElementById('profileStatus');
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+
+      submitBtn.textContent = 'Saving...';
+      submitBtn.disabled = true;
+      statusDiv.innerHTML = '';
+
+      try {
+        const response = await fetch('/api/users/me', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bio: data.bio })
+        });
+        if (response.ok) {
+          const result = await response.json();
+          currentUser = result.user;
+          updateBlogInfo();
+          statusDiv.innerHTML = '<span class="text-green-600 text-sm">✓ Saved successfully</span>';
+          setTimeout(() => statusDiv.innerHTML = '', 3000);
+        } else statusDiv.innerHTML = '<span class="text-red-600 text-sm">Failed to save changes</span>';
+      } catch {
+        statusDiv.innerHTML = '<span class="text-red-600 text-sm">Network error</span>';
+      } finally {
+        submitBtn.textContent = 'Save Changes';
+        submitBtn.disabled = false;
+      }
+    });
+
+    document.getElementById('logout').addEventListener('click', async () => {
+      try { await fetch('/api/auth/logout', { method: 'POST' }); } catch {}
+      window.location.href = 'login.html';
+    });
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    async function init() {
+      const authenticated = await checkAuth();
+      if (authenticated) {
+        await loadProfile();
+        await loadPosts();
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

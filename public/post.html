@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Post - wryte</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta name="description" content="">
+</head>
+<body class="bg-white text-black min-h-screen">
+  <nav class="border-b border-gray-200 bg-white">
+    <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+      <a href="/" class="text-2xl font-bold" style="font-family: 'Dancing Script', cursive;">wryte</a>
+      <div class="space-x-6">
+        <a href="/" class="text-sm hover:text-gray-600 transition-colors">Home</a>
+        <a href="/about.html" class="text-sm hover:text-gray-600 transition-colors">About</a>
+        <a href="/login.html" class="text-sm hover:text-gray-600 transition-colors">Login</a>
+      </div>
+    </div>
+  </nav>
+
+  
+  <div class="max-w-3xl mx-auto px-4 py-8">
+    <header class="mb-8 text-center">
+      <h1 id="postTitle" class="text-3xl font-bold mb-4 text-balance">Loading...</h1>
+      <div id="postMeta" class="text-sm text-gray-600 space-x-2">
+        <span id="postAuthor"></span>
+        <span id="postDate"></span>
+      </div>
+    </header>
+
+    <main id="postContent" class="prose prose-lg max-w-none mb-8 leading-relaxed">
+      Loading post content...
+    </main>
+
+    <footer class="border-t border-gray-200 pt-6">
+     
+      <div class="flex items-center justify-center mb-6">
+        <button id="upvoteBtn" class="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-md text-sm font-medium transition-colors mr-3">
+          ↑ Upvote
+        </button>
+        <span id="voteCount" class="text-sm text-gray-600">0 votes</span>
+      </div>
+      
+     
+      <div id="postActions" class="text-center mb-6 space-x-4" style="display: none;">
+        <a id="editLink" href="#" class="bg-black text-white px-4 py-2 rounded-md text-sm hover:bg-gray-800 transition-colors inline-block">Edit Post</a>
+        <button id="deleteBtn" class="bg-red-600 text-white px-4 py-2 rounded-md text-sm hover:bg-red-700 transition-colors">Delete Post</button>
+      </div>
+
+     
+      <div class="text-center text-sm text-gray-600">
+        <a href="/" class="hover:text-black transition-colors">← Back to Home</a>
+        <span class="mx-3">•</span>
+        <a id="authorLink" href="#" class="hover:text-black transition-colors">View Author's Blog</a>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const postId = urlParams.get('id');
+    
+    if (!postId) {
+      document.body.innerHTML = `
+        <div class="max-w-3xl mx-auto px-4 py-8 text-center">
+          <h1 class="text-3xl font-bold mb-4">Post Not Found</h1>
+          <p class="text-sm text-gray-600 mb-6">The post you're looking for doesn't exist.</p>
+          <a href="/" class="bg-black text-white px-4 py-2 rounded-md text-sm hover:bg-gray-800 transition-colors inline-block">← Back to Home</a>
+        </div>
+      `;
+    } else {
+      loadPost();
+    }
+
+    async function loadPost() {
+      try {
+        const response = await fetch(`/api/posts/${postId}`);
+        
+        if (!response.ok) {
+          throw new Error('Post not found');
+        }
+        
+        const post = await response.json();
+        
+       
+        document.title = `${post.title} - wryte`;
+        document.querySelector('meta[name="description"]').content = 
+          post.content.replace(/<[^>]*>/g, '').substring(0, 160) + '...';
+        
+        document.getElementById('postTitle').textContent = post.title;
+        document.getElementById('postAuthor').innerHTML = `
+          By <a href="blog.html?username=${post.username}">${escapeHtml(post.username)}</a>
+        `;
+        document.getElementById('postDate').textContent = formatDate(post.created_at);
+        
+       
+        const contentDiv = document.getElementById('postContent');
+        contentDiv.innerHTML = post.content;
+        
+        // Update vote count
+        const voteCount = await getVoteCount(postId);
+        document.getElementById('voteCount').textContent = `${voteCount} vote${voteCount !== 1 ? 's' : ''}`;
+        
+        // Set author link
+        document.getElementById('authorLink').href = `blog.html?username=${post.username}`;
+        
+        
+        checkPostOwnership(post);
+        
+      } catch (error) {
+        document.body.innerHTML = `
+          <div class="max-w-3xl mx-auto px-4 py-8 text-center">
+            <h1 class="text-3xl font-bold mb-4">Post Not Found</h1>
+            <p class="text-sm text-gray-600 mb-6">The post you're looking for doesn't exist or has been deleted.</p>
+            <a href="/" class="bg-black text-white px-4 py-2 rounded-md text-sm hover:bg-gray-800 transition-colors inline-block">← Back to Home</a>
+          </div>
+        `;
+      }
+    }
+
+    async function getVoteCount(postId) {
+      try {
+        // Get vote count by checking the votes field
+        const response = await fetch(`/api/posts/${postId}`);
+        if (response.ok) {
+          const post = await response.json();
+          return post.votes || 0;
+        }
+      } catch (error) {
+        console.error('Error getting vote count:', error);
+      }
+      return 0;
+    }
+
+    async function checkPostOwnership(post) {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const user = await response.json();
+          if (user.id === post.user_id) {
+            // Show edit/delete options
+            const actionsDiv = document.getElementById('postActions');
+            actionsDiv.style.display = 'block';
+            
+            document.getElementById('editLink').href = `edit.html?id=${post.id}`;
+          }
+        }
+      } catch (error) {
+        // User not logged in, hide actions
+      }
+    }
+
+    // Handle upvoting
+    document.getElementById('upvoteBtn').addEventListener('click', async () => {
+      const button = document.getElementById('upvoteBtn');
+      const originalText = button.textContent;
+      
+      button.textContent = '...';
+      button.disabled = true;
+      
+      try {
+        const response = await fetch(`/api/posts/${postId}/upvote`, {
+          method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          document.getElementById('voteCount').textContent = 
+            `${result.votes} vote${result.votes !== 1 ? 's' : ''}`;
+          button.textContent = '↑ Voted!';
+          button.style.background = '#28a745';
+          button.style.color = 'white';
+        } else {
+          button.textContent = result.error === 'You have already voted' ? '↑ Already voted' : originalText;
+          if (result.error === 'You have already voted') {
+            button.style.background = '#6c757d';
+            button.style.color = 'white';
+          }
+        }
+      } catch (error) {
+        button.textContent = originalText;
+        alert('Error voting. Please try again.');
+      } finally {
+        button.disabled = result?.error === 'You have already voted';
+      }
+    });
+
+  // Handle post deletion
+document.getElementById('deleteBtn').addEventListener('click', async () => {
+  try {
+    const response = await fetch(`/api/posts/${postId}`, { method: 'DELETE' });
+    if (response.ok) {
+      // Redirect to dashboard after deletion
+      window.location.href = 'dashboard.html';
+    }
+  } catch (error) {
+    console.error('Error deleting post', error);
+  }
+});
+
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Add reading time estimation
+    function estimateReadingTime(content) {
+      const wordsPerMinute = 200;
+      const textContent = content.replace(/<[^>]*>/g, '');
+      const wordCount = textContent.split(/\s+/).length;
+      const readingTime = Math.ceil(wordCount / wordsPerMinute);
+      return readingTime;
+    }
+
+   
+    window.addEventListener('load', () => {
+      const content = document.getElementById('postContent').textContent;
+      const readingTime = estimateReadingTime(content);
+      const metaDiv = document.getElementById('postMeta');
+      
+      if (readingTime > 1) {
+        metaDiv.innerHTML += ` • ${readingTime} min read`;
+      }
+    });
+  </script>
+</body>
+</html>
