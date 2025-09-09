@@ -13,9 +13,20 @@ router.post('/register', async (req, res) => {
        VALUES ($1,$2,$3) RETURNING id, username`,
       [username, email, hash]
     );
+    
     req.session.userId = result.rows[0].id;
-    res.json({ success: true, user: result.rows[0] });
+    
+    // Explicitly save session to ensure it persists
+    req.session.save((err) => {
+      if (err) {
+        console.error('Session save error:', err);
+        return res.status(500).json({ error: 'Session error' });
+      }
+      res.json({ success: true, user: result.rows[0] });
+    });
+    
   } catch (err) {
+    console.error('Registration error:', err);
     res.status(400).json({ error: 'User exists or DB error' });
   }
 });
@@ -23,27 +34,79 @@ router.post('/register', async (req, res) => {
 // Login
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
-  const result = await db.query('SELECT * FROM users WHERE username=$1', [username]);
-  const user = result.rows[0];
-  if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+  
+  try {
+    const result = await db.query('SELECT * FROM users WHERE username=$1', [username]);
+    const user = result.rows[0];
+    
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
 
-  const match = await bcrypt.compare(password, user.password_hash);
-  if (!match) return res.status(401).json({ error: 'Invalid credentials' });
+    const match = await bcrypt.compare(password, user.password_hash);
+    if (!match) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
 
-  req.session.userId = user.id;
-  res.json({ success: true, user: { id: user.id, username: user.username } });
+    req.session.userId = user.id;
+    
+    // Explicitly save session to ensure it persists
+    req.session.save((err) => {
+      if (err) {
+        console.error('Session save error:', err);
+        return res.status(500).json({ error: 'Session error' });
+      }
+      res.json({ 
+        success: true, 
+        user: { 
+          id: user.id, 
+          username: user.username,
+          bio: user.bio 
+        } 
+      });
+    });
+    
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 // Logout
 router.post('/logout', (req, res) => {
-  req.session.destroy(() => res.json({ success: true }));
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Logout error:', err);
+      return res.status(500).json({ error: 'Could not log out' });
+    }
+    
+    // Clear the session cookie
+    res.clearCookie('sessionId'); // Use the same name as in your session config
+    res.json({ success: true });
+  });
 });
 
 // Current user
 router.get('/me', async (req, res) => {
-  if (!req.session.userId) return res.status(401).json({ error: 'Not logged in' });
-  const result = await db.query('SELECT id, username,  bio FROM users WHERE id=$1', [req.session.userId]);
-  res.json(result.rows[0]);
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Not logged in' });
+  }
+  
+  try {
+    const result = await db.query(
+      'SELECT id, username, bio FROM users WHERE id=$1', 
+      [req.session.userId]
+    );
+    
+    if (!result.rows[0]) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Database error:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
 });
 
 module.exports = router;
