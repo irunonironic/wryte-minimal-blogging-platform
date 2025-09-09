@@ -8,7 +8,7 @@ const postRoutes = require('./routes/posts');
 const userRoutes = require('./routes/users');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT ;
 
 // Middleware
 app.use(express.json());
@@ -30,13 +30,13 @@ app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/users', userRoutes);
 
-// Handle blog subdomain routing (like bearblog)
+
 app.get('/', (req, res) => {
   const host = req.get('host');
   const subdomain = host.split('.')[0];
   
   // If it's a subdomain (not main site), show that user's blog
-  if (subdomain !== 'localhost' && subdomain !== host) {
+  if (subdomain !== 'my-main-domain.com' && subdomain !== host) {
     res.sendFile(path.join(__dirname, 'public', 'blog.html'));
   } else {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -49,7 +49,7 @@ app.get('*', (req, res) => {
     return res.status(404).json({ error: 'Not found' });
   }
   
-  // Check if it's a post slug
+  
   if (req.path.match(/^\/[a-zA-Z0-9-]+$/)) {
     res.sendFile(path.join(__dirname, 'public', 'post.html'));
   } else {
